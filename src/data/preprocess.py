@@ -1,4 +1,4 @@
-"""Preprocess raw stock data into LSTM sequences."""
+"""Pré-processamento de séries temporais para treino da LSTM."""
 
 from __future__ import annotations
 
@@ -23,6 +23,14 @@ from src.config import (
 
 
 def load_raw(symbol: str | None = None) -> pd.DataFrame:
+    """Carrega o CSV bruto gerado por ``download``.
+
+    Args:
+        symbol: Ticker (padrão: ``SYMBOL`` do .env).
+
+    Raises:
+        FileNotFoundError: Se o CSV não existir.
+    """
     path = raw_csv_path(symbol)
     if not path.exists():
         raise FileNotFoundError(
@@ -33,6 +41,16 @@ def load_raw(symbol: str | None = None) -> pd.DataFrame:
 
 
 def build_sequences(prices: np.ndarray, lookback: int) -> tuple[np.ndarray, np.ndarray]:
+    """Monta janelas deslizantes para aprendizado supervisionado.
+
+    Args:
+        prices: Série 1D de preços já normalizados.
+        lookback: Quantidade de dias de entrada.
+
+    Returns:
+        Tupla ``(X, y)`` onde cada ``X[i]`` tem shape ``(lookback,)`` e
+        ``y[i]`` é o preço do dia seguinte.
+    """
     X, y = [], []
     for i in range(lookback, len(prices)):
         X.append(prices[i - lookback : i])
@@ -46,6 +64,20 @@ def temporal_split(
     val_ratio: float,
     test_ratio: float,
 ) -> tuple[slice, slice, slice]:
+    """Divide amostras em ordem cronológica (sem embaralhar).
+
+    Args:
+        n_samples: Número total de sequências.
+        train_ratio: Proporção de treino (ex.: 0.70).
+        val_ratio: Proporção de validação.
+        test_ratio: Proporção de teste.
+
+    Returns:
+        Slices ``(train, val, test)`` para indexar arrays.
+
+    Raises:
+        ValueError: Se as proporções não somarem 1.0.
+    """
     total = train_ratio + val_ratio + test_ratio
     if abs(total - 1.0) > 1e-6:
         raise ValueError(f"Split ratios must sum to 1.0, got {total}")
@@ -56,6 +88,19 @@ def temporal_split(
 
 
 def preprocess(symbol: str | None = None, lookback: int | None = None) -> dict:
+    """Pipeline completo: normalização, sequências e split temporal.
+
+    O ``MinMaxScaler`` é ajustado **apenas** na porção de treino dos preços
+    brutos, evitando vazamento de informação para validação e teste.
+
+    Args:
+        symbol: Ticker (padrão: ``SYMBOL``).
+        lookback: Tamanho da janela (padrão: ``LOOKBACK``).
+
+    Returns:
+        Dicionário com arrays ``X_train``, ``y_train``, ``X_val``, ``y_val``,
+        ``X_test``, ``y_test``, além de ``dates``, ``lookback`` e ``symbol``.
+    """
     sym = symbol or SYMBOL
     lb = lookback or LOOKBACK
 
@@ -104,6 +149,7 @@ def preprocess(symbol: str | None = None, lookback: int | None = None) -> dict:
 
 
 def main() -> None:
+    """Executa o pré-processamento via linha de comando."""
     try:
         preprocess()
     except Exception as exc:

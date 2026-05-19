@@ -1,4 +1,4 @@
-"""Train the LSTM stock price prediction model."""
+"""Treinamento do modelo LSTM com early stopping e checkpoint."""
 
 from __future__ import annotations
 
@@ -30,6 +30,11 @@ from src.model.lstm import build_lstm_model
 
 
 def load_processed(symbol: str | None = None) -> dict:
+    """Carrega arrays NumPy do arquivo NPZ processado.
+
+    Raises:
+        FileNotFoundError: Se o pré-processamento não foi executado.
+    """
     path = processed_npz_path(symbol)
     if not path.exists():
         raise FileNotFoundError(
@@ -40,6 +45,7 @@ def load_processed(symbol: str | None = None) -> dict:
 
 
 def _make_loader(X: np.ndarray, y: np.ndarray, shuffle: bool) -> DataLoader:
+    """Converte arrays em DataLoader PyTorch."""
     X_t = torch.tensor(X, dtype=torch.float32)
     y_t = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
     return DataLoader(TensorDataset(X_t, y_t), batch_size=BATCH_SIZE, shuffle=shuffle)
@@ -52,6 +58,11 @@ def _run_epoch(
     optimizer: torch.optim.Optimizer | None,
     device: torch.device,
 ) -> float:
+    """Executa uma época de treino ou validação.
+
+    Returns:
+        Loss média da época.
+    """
     is_train = optimizer is not None
     model.train() if is_train else model.eval()
     losses: list[float] = []
@@ -74,6 +85,16 @@ def _run_epoch(
 
 
 def train(symbol: str | None = None) -> dict:
+    """Treina a LSTM com Adam, MSE e early stopping.
+
+    Salva o melhor checkpoint (menor val_loss) e metadados em JSON.
+
+    Args:
+        symbol: Ticker (padrão: ``SYMBOL``).
+
+    Returns:
+        Dicionário com ``history`` (loss por época) e ``metadata``.
+    """
     sym = symbol or SYMBOL
     ensure_dirs()
 
@@ -141,6 +162,7 @@ def train(symbol: str | None = None) -> dict:
 
 
 def main() -> None:
+    """Executa o treinamento via linha de comando."""
     try:
         train()
     except Exception as exc:

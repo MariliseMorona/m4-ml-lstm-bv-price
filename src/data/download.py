@@ -1,4 +1,4 @@
-"""Download historical stock prices from Yahoo Finance."""
+"""Coleta de preços históricos de ações via Yahoo Finance (yfinance)."""
 
 from __future__ import annotations
 
@@ -11,13 +11,37 @@ from src.config import END_DATE, START_DATE, SYMBOL, ensure_dirs, raw_csv_path
 
 
 def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Flatten MultiIndex columns returned by yfinance."""
+    """Achata colunas MultiIndex retornadas pelo yfinance.
+
+    Args:
+        df: DataFrame retornado por ``yf.download``.
+
+    Returns:
+        DataFrame com colunas de primeiro nível (Close, Open, etc.).
+    """
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     return df
 
 
-def download(symbol: str | None = None, start: str | None = None, end: str | None = None) -> pd.DataFrame:
+def download(
+    symbol: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+) -> pd.DataFrame:
+    """Baixa histórico OHLCV e persiste em ``data/raw/{symbol}_historical.csv``.
+
+    Args:
+        symbol: Ticker Yahoo Finance (padrão: ``SYMBOL`` do .env).
+        start: Data inicial ``YYYY-MM-DD``.
+        end: Data final ``YYYY-MM-DD``.
+
+    Returns:
+        DataFrame com colunas Date, Open, High, Low, Close, Volume.
+
+    Raises:
+        ValueError: Se o yfinance não retornar dados para o ticker/período.
+    """
     sym = symbol or SYMBOL
     start_date = start or START_DATE
     end_date = end or END_DATE
@@ -41,6 +65,7 @@ def download(symbol: str | None = None, start: str | None = None, end: str | Non
 
 
 def main() -> None:
+    """Executa o download via linha de comando."""
     try:
         download()
     except Exception as exc:

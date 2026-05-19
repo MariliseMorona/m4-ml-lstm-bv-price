@@ -1,4 +1,11 @@
-"""Streamlit dashboard for the LSTM stock prediction API."""
+"""Dashboard Streamlit para consumir a API de previsão LSTM.
+
+Funções principais:
+    fetch_health          — status da API
+    call_predict_symbol   — previsão automática via Yahoo Finance
+    call_predict_prices   — previsão com histórico manual
+    show_prediction_result — exibe resultado, avisos e gráfico
+"""
 
 from __future__ import annotations
 
@@ -13,6 +20,7 @@ DEFAULT_SYMBOL = os.getenv("SYMBOL", "DIS")
 
 
 def fetch_health() -> dict | None:
+    """Consulta GET /health e retorna JSON ou None se a API estiver offline."""
     try:
         r = requests.get(f"{API_URL}/health", timeout=5)
         r.raise_for_status()
@@ -22,6 +30,7 @@ def fetch_health() -> dict | None:
 
 
 def call_predict_symbol(symbol: str, steps: int = 1, period: str = "1y") -> dict | None:
+    """Chama POST /predict/symbol — API busca cotações e retorna previsão."""
     try:
         r = requests.post(
             f"{API_URL}/predict/symbol",
@@ -45,6 +54,7 @@ def call_predict_symbol(symbol: str, steps: int = 1, period: str = "1y") -> dict
 def call_predict_prices(
     prices: list[float], steps: int = 1, symbol: str | None = None
 ) -> dict | None:
+    """Chama POST /predict com lista de preços informada pelo usuário."""
     try:
         payload: dict = {"prices": prices, "steps": steps}
         if symbol:
@@ -58,6 +68,7 @@ def call_predict_prices(
 
 
 def show_prediction_result(result: dict) -> None:
+    """Renderiza previsão, avisos, gráfico histórico e JSON da resposta."""
     preds = result["predicted_close"]
     sym = result["symbol"]
     model_sym = result.get("model_symbol", sym)

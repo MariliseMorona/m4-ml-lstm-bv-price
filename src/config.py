@@ -1,4 +1,8 @@
-"""Central configuration loaded from environment variables."""
+"""Configuração central do projeto.
+
+Carrega variáveis de ambiente do arquivo `.env` e expõe caminhos,
+hiperparâmetros e utilitários de I/O para metadados do modelo.
+"""
 
 from __future__ import annotations
 
@@ -36,37 +40,43 @@ API_PORT: int = int(os.getenv("API_PORT", "8000"))
 
 
 def ensure_dirs() -> None:
-    """Create project directories if they do not exist."""
+    """Cria diretórios de dados, modelos e relatórios se não existirem."""
     for path in (DATA_RAW_DIR, DATA_PROCESSED_DIR, MODELS_DIR, REPORTS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 
 def raw_csv_path(symbol: str | None = None) -> Path:
+    """Retorna o caminho do CSV bruto baixado do Yahoo Finance."""
     sym = symbol or SYMBOL
     return DATA_RAW_DIR / f"{sym}_historical.csv"
 
 
 def processed_npz_path(symbol: str | None = None) -> Path:
+    """Retorna o caminho do arquivo NPZ com sequências treino/val/teste."""
     sym = symbol or SYMBOL
     return DATA_PROCESSED_DIR / f"{sym}_sequences.npz"
 
 
 def model_path(symbol: str | None = None) -> Path:
+    """Retorna o caminho do checkpoint PyTorch do modelo LSTM."""
     sym = symbol or SYMBOL
     return MODELS_DIR / f"lstm_{sym}.pt"
 
 
 def scaler_path(symbol: str | None = None) -> Path:
+    """Retorna o caminho do MinMaxScaler serializado com joblib."""
     sym = symbol or SYMBOL
     return MODELS_DIR / f"scaler_{sym}.pkl"
 
 
 def metadata_path(symbol: str | None = None) -> Path:
+    """Retorna o caminho do JSON com metadados e métricas do treino."""
     sym = symbol or SYMBOL
     return MODELS_DIR / f"metadata_{sym}.json"
 
 
 def save_metadata(data: dict, symbol: str | None = None) -> Path:
+    """Salva metadados do modelo (hiperparâmetros, métricas, datas) em JSON."""
     path = metadata_path(symbol)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -75,6 +85,7 @@ def save_metadata(data: dict, symbol: str | None = None) -> Path:
 
 
 def load_metadata(symbol: str | None = None) -> dict:
+    """Carrega metadados do disco; retorna dict vazio se o arquivo não existir."""
     path = metadata_path(symbol)
     if not path.exists():
         return {}

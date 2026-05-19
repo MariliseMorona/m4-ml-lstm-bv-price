@@ -1,4 +1,11 @@
-"""FastAPI application for LSTM stock price prediction."""
+"""API REST FastAPI para servir previsões do modelo LSTM em produção.
+
+Endpoints principais:
+    GET  /health          — status e métricas de teste
+    POST /predict         — previsão a partir de lista de preços
+    POST /predict/symbol  — busca Yahoo Finance + previsão
+    GET  /metrics         — métricas Prometheus
+"""
 
 from __future__ import annotations
 
@@ -24,6 +31,7 @@ _predictor: StockPredictor | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Carrega o modelo na inicialização e libera recursos no shutdown."""
     global _predictor
     try:
         _predictor = StockPredictor(SYMBOL)
@@ -78,6 +86,7 @@ class PredictResponse(BaseModel):
 
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
+    """Registra latência e contagem de requisições (exceto /metrics)."""
     if request.url.path == "/metrics":
         return await call_next(request)
     method = request.method
@@ -87,6 +96,7 @@ async def metrics_middleware(request: Request, call_next):
 
 
 def _symbol_warning(requested: str) -> str | None:
+    """Retorna aviso quando o ticker solicitado difere do modelo treinado."""
     if requested.upper() != SYMBOL.upper():
         return (
             f"Modelo treinado para {SYMBOL.upper()}. "
@@ -97,6 +107,7 @@ def _symbol_warning(requested: str) -> str | None:
 
 @app.get("/health")
 def health():
+    """Verifica status da API, modelo carregado e métricas de teste."""
     meta = load_metadata(SYMBOL)
     return {
         "status": "ok",
@@ -110,11 +121,13 @@ def health():
 
 @app.get("/metrics")
 def metrics():
+    """Expõe métricas no formato Prometheus."""
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(body: PredictRequest):
+    """Prevê fechamento(s) futuro(s) a partir de histórico de preços enviado."""
     if _predictor is None:
         raise HTTPException(status_code=503, detail="Model not loaded. Train the model first.")
 
@@ -140,6 +153,7 @@ def predict(body: PredictRequest):
 
 @app.post("/predict/symbol", response_model=PredictResponse)
 def predict_by_symbol(body: PredictBySymbolRequest):
+    """Baixa cotações no Yahoo Finance e executa o modelo para o ticker."""
     if _predictor is None:
         raise HTTPException(status_code=503, detail="Model not loaded.")
 
@@ -179,6 +193,7 @@ def predict_by_symbol(body: PredictBySymbolRequest):
 
 
 def main() -> None:
+    """Sobe o servidor Uvicorn."""
     import uvicorn
 
     uvicorn.run("src.api.main:app", host=API_HOST, port=API_PORT, reload=False)

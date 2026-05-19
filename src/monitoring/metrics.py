@@ -1,4 +1,4 @@
-"""Prometheus metrics for API monitoring."""
+"""Métricas Prometheus para monitoramento da API em produção."""
 
 from __future__ import annotations
 
@@ -34,6 +34,15 @@ MODEL_LOADED = Gauge(
 
 @contextmanager
 def track_request(method: str, endpoint: str):
+    """Context manager que registra latência e status ao final da requisição.
+
+    Args:
+        method: Verbo HTTP (GET, POST, ...).
+        endpoint: Caminho da rota (ex.: ``/predict``).
+
+    Yields:
+        Controle para o bloco da requisição; status 200 ou 500 é registrado.
+    """
     start = time.perf_counter()
     status = "500"
     try:

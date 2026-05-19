@@ -1,4 +1,4 @@
-"""Evaluate the trained LSTM model on the test set."""
+"""Avaliação do modelo LSTM no conjunto de teste."""
 
 from __future__ import annotations
 
@@ -16,6 +16,14 @@ from src.model.metrics import compute_all
 
 
 def evaluate(symbol: str | None = None) -> dict:
+    """Calcula MAE, RMSE e MAPE no teste e gera gráfico de comparação.
+
+    Args:
+        symbol: Ticker (padrão: ``SYMBOL``).
+
+    Returns:
+        Dicionário com métricas ``mae``, ``rmse`` e ``mape``.
+    """
     sym = symbol or SYMBOL
     ensure_dirs()
     device = get_device()
@@ -51,6 +59,7 @@ def evaluate(symbol: str | None = None) -> dict:
 
 
 def _plot_predictions(symbol: str, y_true: np.ndarray, y_pred: np.ndarray, n: int = 120) -> None:
+    """Salva gráfico PNG comparando série real e prevista (últimos n pontos)."""
     n = min(n, len(y_true))
     plt.figure(figsize=(12, 5))
     plt.plot(y_true[-n:], label="Real", linewidth=2)
@@ -67,6 +76,7 @@ def _plot_predictions(symbol: str, y_true: np.ndarray, y_pred: np.ndarray, n: in
 
 
 def main() -> None:
+    """Executa a avaliação via linha de comando."""
     try:
         evaluate()
     except Exception as exc:

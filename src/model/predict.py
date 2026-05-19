@@ -1,4 +1,4 @@
-"""Inference utilities for the trained LSTM model."""
+"""Inferência em produção com o modelo LSTM treinado."""
 
 from __future__ import annotations
 
@@ -13,7 +13,26 @@ from src.model.io import get_device, load_model
 
 
 class StockPredictor:
+    """Encapsula modelo, scaler e metadados para servir previsões.
+
+    Attributes:
+        symbol: Ticker associado ao modelo.
+        lookback: Janela mínima de preços históricos.
+        device: Dispositivo PyTorch (cpu/cuda/mps).
+        model: Rede LSTM em modo eval.
+        scaler: MinMaxScaler do pré-processamento.
+    """
+
     def __init__(self, symbol: str, models_dir: Path | None = None):
+        """Carrega artefatos do disco.
+
+        Args:
+            symbol: Ticker (ex.: ``DIS``).
+            models_dir: Diretório alternativo de modelos (opcional).
+
+        Raises:
+            FileNotFoundError: Se modelo ou scaler não existirem.
+        """
         self.symbol = symbol
         self.metadata = load_metadata(symbol)
         self.lookback = int(self.metadata.get("lookback", LOOKBACK))
@@ -31,6 +50,21 @@ class StockPredictor:
         self.scaler = joblib.load(spath)
 
     def predict_next(self, prices: list[float] | np.ndarray, steps: int = 1) -> list[float]:
+        """Prevê um ou mais fechamentos futuros.
+
+        Para ``steps > 1``, cada previsão alimenta a janela seguinte
+        (previsão recursiva).
+
+        Args:
+            prices: Histórico de fechamentos (mínimo ``lookback`` valores).
+            steps: Quantidade de dias à frente.
+
+        Returns:
+            Lista com preços previstos em escala original.
+
+        Raises:
+            ValueError: Se ``steps < 1``, preços insuficientes, NaN ou ≤ 0.
+        """
         if steps < 1:
             raise ValueError("steps must be >= 1")
 
@@ -60,4 +94,5 @@ class StockPredictor:
 
 
 def load_predictor(symbol: str) -> StockPredictor:
+    """Atalho para instanciar ``StockPredictor``."""
     return StockPredictor(symbol)
