@@ -7,6 +7,8 @@ services:
       - .env
     volumes:
       - ./models:/app/models
+      - ./data:/app/data
+      - ./reports:/app/reports
     restart: unless-stopped
 
   prometheus:

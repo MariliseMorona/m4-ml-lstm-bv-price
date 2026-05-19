@@ -264,6 +264,86 @@ curl -X POST http://localhost:8000/predict/symbol \
   -d '{"symbol": "DIS", "steps": 1, "period": "1y"}'
 ```
 
+## Docker — pipeline e containers
+
+### Pré-requisitos
+
+- Docker e Docker Compose instalados
+- Arquivo `.env` configurado: `cp .env.example .env`
+
+### Opção A — Pipeline local + containers (recomendado)
+
+Treine no venv e suba só API + monitoramento:
+
+```bash
+cd m4-ml-lstm-bv-price
+source .venv/bin/activate
+
+# 1) Pipeline ML
+python -m src.data.download
+python -m src.data.preprocess
+python -m src.model.train
+python -m src.model.evaluate
+
+# 2) Containers (API + Prometheus + Grafana)
+docker compose build
+docker compose up -d
+
+# 3) Verificar
+curl http://localhost:8000/health
+docker compose ps
+docker compose logs -f api
+```
+
+### Opção B — Pipeline inteira dentro do Docker
+
+```bash
+cd m4-ml-lstm-bv-price
+cp .env.example .env
+
+docker compose build
+
+# Pipeline ML (one-off no container da API)
+docker compose run --rm api python -m src.data.download
+docker compose run --rm api python -m src.data.preprocess
+docker compose run --rm api python -m src.model.train
+docker compose run --rm api python -m src.model.evaluate
+
+# Subir stack em produção
+docker compose up -d
+```
+
+### URLs dos serviços
+
+| Serviço | URL |
+|---------|-----|
+| API | http://localhost:8000 |
+| Swagger | http://localhost:8000/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin) |
+
+### Dashboard (fora do Docker)
+
+O Streamlit roda no host apontando para a API no container:
+
+```bash
+source .venv/bin/activate
+export API_URL=http://localhost:8000
+python -m streamlit run dashboard/app.py
+```
+
+### Comandos úteis Docker
+
+```bash
+docker compose up -d          # sobe em background
+docker compose up --build     # rebuild + sobe
+docker compose down           # para e remove containers
+docker compose logs -f api    # logs da API
+docker compose restart api    # reinicia só a API
+```
+
+---
+
 ## Testes
 
 ```bash
