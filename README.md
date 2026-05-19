@@ -322,6 +322,35 @@ docker compose up -d
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 
+### Grafana e Prometheus
+
+1. **Prometheus** só armazena métricas que a API expõe em `/metrics`.
+2. **Contadores** (`http_requests_total`, `predictions_total`) só aumentam quando alguém **chama a API**.
+3. **Grafana** precisa de data source + dashboard (o projeto provisiona automaticamente após `docker compose up -d`).
+
+**Recriar Grafana com provisioning** (se já subiu antes sem os arquivos novos):
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+**Gerar tráfego para aparecer gráfico:**
+
+```bash
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/predict/symbol \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "DIS", "steps": 1, "period": "1y"}'
+```
+
+**Prometheus** (http://localhost:9090): **Status → Targets** → `lstm-api` = **UP**.  
+**Graph**: digite `http_requests_total` ou `model_loaded` → Execute.
+
+**Grafana**: login `admin` / `admin` → **Dashboards** → **LSTM Stock API**.
+
+Configuração manual (se necessário): **Connections → Data sources → Add Prometheus** → URL `http://prometheus:9090`.
+
 ### Dashboard (fora do Docker)
 
 O Streamlit roda no host apontando para a API no container:
