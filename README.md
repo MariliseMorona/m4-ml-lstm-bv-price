@@ -129,7 +129,16 @@ API **FastAPI** que expõe o modelo em produção:
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Documentação interativa: http://localhost:8000/docs
+Documentação interativa (Swagger): http://localhost:8000/docs
+
+![Swagger — LSTM Stock Price API](docs/images/swagger-api-docs.png)
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/health` | `GET` | Status da API e do modelo |
+| `/metrics` | `GET` | Métricas Prometheus |
+| `/predict` | `POST` | Previsão com lista de preços |
+| `/predict/symbol` | `POST` | Previsão buscando cotações no Yahoo Finance |
 
 > **Nota:** O modelo é treinado para um ticker (`SYMBOL` no `.env`). Previsões para outros símbolos retornam um `warning` na resposta — para produção real, retreine com o novo ticker.
 
@@ -152,6 +161,17 @@ python -m streamlit run dashboard/app.py
 ```
 
 Acesse: http://localhost:8501
+
+**Dashboard** (status da API, previsão automática e configuração na barra lateral):
+
+![Dashboard Streamlit — Previsão de Preços LSTM](docs/images/dashboard-streamlit.jpg)
+
+| Área | Função |
+|------|--------|
+| Métricas no topo | Status da API, modelo carregado, ticker treinado e MAPE de teste |
+| Aba automática | API busca cotações no Yahoo Finance e executa o modelo |
+| Aba manual | Envio de histórico de preços (mínimo 60 fechamentos) |
+| Barra lateral | Símbolo, dias à prever, período histórico e JSON do `/health` |
 
 ---
 
@@ -176,6 +196,28 @@ docker compose up --build
 
 ---
 
+## Deploy na nuvem (Render)
+
+> **API não publicada:** A API **não foi implantada em produção** na nuvem devido aos **custos** da publicação contínua no [Render](https://render.com) (limitações do plano gratuito — sem disco persistente e sem `preDeployCommand` — e cobrança em planos pagos para recursos como persistência de modelo e treino automático no deploy).
+
+A inferência e o consumo via dashboard estão documentados para execução **local** ou via **Docker Compose** (seções anteriores deste README).
+
+Caso seja necessário publicar a aplicação, o repositório inclui o arquivo **[`render.yaml`](render.yaml)** (Blueprint Render) com a configuração de referência para:
+
+| Serviço | Descrição |
+|---------|-----------|
+| `lstm-api` | API FastAPI (runtime Docker) |
+| `lstm-dashboard` | Dashboard Streamlit |
+
+**Como usar o Blueprint (se desejar publicar):**
+
+1. Conecte o repositório em [Render → Blueprints](https://dashboard.render.com/blueprints).
+2. Informe o caminho `render.yaml` na raiz do projeto.
+3. Ajuste variáveis (`SYMBOL`, datas, etc.) no painel, se necessário.
+4. No plano gratuito, inclua os artefatos treinados em `models/` no repositório ou execute o treino manualmente pelo Shell do serviço após o deploy.
+
+---
+
 ## Documentação de funções
 
 Referência completa de funções, classes e endpoints: **[docs/FUNCTIONS.md](docs/FUNCTIONS.md)**
@@ -197,8 +239,10 @@ Cada módulo Python também possui **docstrings** (visíveis no IDE e via `help(
 │   ├── api/               # FastAPI
 │   └── monitoring/        # Métricas Prometheus
 ├── dashboard/             # Streamlit
+├── docs/images/           # Capturas (Dashboard, Swagger, Prometheus, Grafana)
 ├── tests/
 ├── docker-compose.yml     # API + Prometheus + Grafana
+├── render.yaml            # Blueprint Render (deploy opcional na nuvem)
 └── requirements.txt
 ```
 
@@ -347,7 +391,28 @@ curl -X POST http://localhost:8000/predict/symbol \
 **Prometheus** (http://localhost:9090): **Status → Targets** → `lstm-api` = **UP**.  
 **Graph**: digite `http_requests_total` ou `model_loaded` → Execute.
 
+**Prometheus** (métrica `http_requests_total` após gerar tráfego na API):
+
+![Prometheus — http_requests_total por rota](docs/images/prometheus-http-requests.png)
+
+| Série | Labels | Descrição |
+|-------|--------|-----------|
+| `/health` | `method=GET`, `status=200` | Requisições ao health check |
+| `/predict/symbol` | `method=POST`, `status=200` | Previsões por símbolo via Yahoo Finance |
+
 **Grafana**: login `admin` / `admin` → **Dashboards** → **LSTM Stock API**.
+
+**Grafana** (após gerar tráfego na API):
+
+![Dashboard Grafana — LSTM Stock API](docs/images/grafana-lstm-api.png)
+
+| Painel | Métrica |
+|--------|---------|
+| Requisições HTTP | Taxa de requisições por rota (`/health`, `/predict/symbol`) |
+| Latência p95 | Percentil 95 da latência por endpoint |
+| Modelo carregado | `model_loaded` (1 = modelo em memória) |
+| Total de previsões | `predictions_total` por símbolo |
+| Target Prometheus | Status do scrape da API (`up` = 1) |
 
 Configuração manual (se necessário): **Connections → Data sources → Add Prometheus** → URL `http://prometheus:9090`.
 
@@ -399,9 +464,10 @@ pytest tests/ -v
 - [x] Modelo LSTM com early stopping
 - [x] Métricas MAE, RMSE, MAPE
 - [x] Salvamento do modelo e scaler
-- [x] API REST FastAPI
+- [x] API REST FastAPI (execução local / Docker; **não publicada na nuvem** — ver [Deploy na nuvem (Render)](#deploy-na-nuvem-render))
 - [x] Monitoramento Prometheus
 - [x] Dashboard Streamlit
+- [x] Blueprint Render (`render.yaml`) disponível para deploy opcional
 
 ## Problemas no Mac (AVX / TensorFlow)
 

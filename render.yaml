@@ -6,9 +6,11 @@
 #   2. Aplique o Blueprint (este arquivo)
 #   3. Ajuste SYMBOL e demais variáveis no painel, se necessário
 #
-# Na primeira implantação, o preDeploy baixa dados, pré-processa e treina o modelo
-# (pode levar vários minutos por causa do PyTorch). O disco persistente evita
-# retreinar em deploys seguintes, desde que o arquivo do modelo exista.
+# Plano FREE: sem disco persistente e sem preDeployCommand.
+# Para previsões funcionarem, inclua no repositório os artefatos em models/
+# (lstm_{SYMBOL}.pt, scaler_{SYMBOL}.pkl, metadata_{SYMBOL}.json) ou treine
+# manualmente pelo Shell do serviço após o deploy:
+#   python -m src.data.download && python -m src.data.preprocess && python -m src.model.train
 
 services:
   # API FastAPI + modelo LSTM (Docker)
@@ -19,14 +21,6 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health
-    preDeployCommand: >-
-      python -m src.data.download &&
-      python -m src.data.preprocess &&
-      bash -c 'test -f "models/lstm_${SYMBOL}.pt" || python -m src.model.train'
-    disk:
-      name: lstm-models
-      mountPath: /app/models
-      sizeGB: 2
     envVars:
       - key: PYTHONPATH
         value: /app

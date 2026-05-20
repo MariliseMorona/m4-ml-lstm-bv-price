@@ -71,8 +71,21 @@ def call_predict_prices(
         r.raise_for_status()
         return r.json()
     except requests.RequestException as exc:
-        st.error(f"Erro na API: {exc}")
+        if hasattr(exc, "response") and exc.response is not None:
+            try:
+                detail = exc.response.json().get("detail", str(exc))
+            except Exception:
+                detail = str(exc)
+            st.error(f"Erro na API: {detail}")
+        else:
+            st.error(f"Erro na API: {exc}")
         return None
+
+
+def _example_prices_text(lookback: int) -> str:
+    """Gera lookback preços de exemplo para teste da previsão manual."""
+    base = 150.0
+    return ", ".join(f"{base + i * 0.1:.1f}" for i in range(lookback))
 
 
 def show_prediction_result(result: dict) -> None:
@@ -149,21 +162,46 @@ with tab1:
 
 with tab2:
     st.subheader("Enviar histórico manualmente")
-    st.caption(f"A previsão será rotulada como **{symbol}** na resposta da API.")
-    default_text = "150.0, 151.2, 152.0"
+    lookback = int((health or {}).get("lookback") or 60)
+    st.caption(
+        f"A previsão será rotulada como **{symbol}** na resposta da API. "
+        f"O modelo exige **pelo menos {lookback}** preços de fechamento (lookback)."
+    )
+    if "manual_prices_text" not in st.session_state:
+        st.session_state.manual_prices_text = _example_prices_text(lookback)
+
+    col_fill, col_clear = st.columns(2)
+    with col_fill:
+        if st.button(f"Preencher exemplo ({lookback} preços)"):
+            st.session_state.manual_prices_text = _example_prices_text(lookback)
+    with col_clear:
+        if st.button("Limpar"):
+            st.session_state.manual_prices_text = ""
+
     raw = st.text_area(
         "Preços de fechamento (separados por vírgula)",
-        value=default_text,
-        help=f"Informe pelo menos {(health or {}).get('lookback', 60)} valores",
+        height=120,
+        help=f"Mínimo de {lookback} valores positivos, sem NaN.",
+        key="manual_prices_text",
     )
-    if st.button("Prever com histórico manual"):
+    if st.button("Prever com histórico manual", type="primary"):
         try:
             prices = [float(x.strip()) for x in raw.split(",") if x.strip()]
-            result = call_predict_prices(prices, steps=steps, symbol=symbol)
-            if result:
-                show_prediction_result(result)
         except ValueError:
             st.error("Valores inválidos. Use números separados por vírgula.")
+        else:
+            if len(prices) < lookback:
+                st.error(
+                    f"Foram informados **{len(prices)}** preços, mas o modelo precisa de "
+                    f"**pelo menos {lookback}**. Use o botão acima para preencher um exemplo "
+                    "ou cole mais valores."
+                )
+            elif any(p <= 0 for p in prices):
+                st.error("Todos os preços devem ser números positivos.")
+            else:
+                result = call_predict_prices(prices, steps=steps, symbol=symbol)
+                if result:
+                    show_prediction_result(result)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**API:** `{API_URL}`")
