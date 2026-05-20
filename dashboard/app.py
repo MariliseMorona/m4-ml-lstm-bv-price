@@ -15,7 +15,15 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+def _resolve_api_url() -> str:
+    """Normaliza API_URL (aceita host:port da rede privada Render)."""
+    raw = os.getenv("API_URL", "http://localhost:8000").strip()
+    if not raw.startswith(("http://", "https://")):
+        return f"http://{raw}".rstrip("/")
+    return raw.rstrip("/")
+
+
+API_URL = _resolve_api_url()
 DEFAULT_SYMBOL = os.getenv("SYMBOL", "DIS")
 
 

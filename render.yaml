@@ -1,0 +1,82 @@
+# Blueprint Render — deploy da API LSTM e do dashboard Streamlit.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Uso:
+#   1. Conecte o repositório em https://dashboard.render.com/blueprints
+#   2. Aplique o Blueprint (este arquivo)
+#   3. Ajuste SYMBOL e demais variáveis no painel, se necessário
+#
+# Na primeira implantação, o preDeploy baixa dados, pré-processa e treina o modelo
+# (pode levar vários minutos por causa do PyTorch). O disco persistente evita
+# retreinar em deploys seguintes, desde que o arquivo do modelo exista.
+
+services:
+  # API FastAPI + modelo LSTM (Docker)
+  - type: web
+    name: lstm-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    # Render injeta PORT; a API deve escutar $PORT (não 8000 fixo).
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    preDeployCommand: >-
+      python -m src.data.download &&
+      python -m src.data.preprocess &&
+      bash -c 'test -f "models/lstm_${SYMBOL}.pt" || python -m src.model.train'
+    disk:
+      name: lstm-models
+      mountPath: /app/models
+      sizeGB: 2
+    envVars:
+      - key: PYTHONPATH
+        value: /app
+      - key: SYMBOL
+        value: DIS
+      - key: START_DATE
+        value: "2018-01-01"
+      - key: END_DATE
+        value: "2024-07-20"
+      - key: LOOKBACK
+        value: "60"
+      - key: LSTM_UNITS
+        value: "50"
+      - key: DROPOUT
+        value: "0.2"
+      - key: EPOCHS
+        value: "100"
+      - key: BATCH_SIZE
+        value: "32"
+      - key: LEARNING_RATE
+        value: "0.001"
+      - key: TRAIN_RATIO
+        value: "0.70"
+      - key: VAL_RATIO
+        value: "0.15"
+      - key: TEST_RATIO
+        value: "0.15"
+
+  # Dashboard Streamlit (consome a API via rede privada Render)
+  - type: web
+    name: lstm-dashboard
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: >-
+      streamlit run dashboard/app.py
+      --server.port $PORT
+      --server.address 0.0.0.0
+      --server.headless true
+      --browser.gatherUsageStats false
+    envVars:
+      - key: PYTHONPATH
+        value: .
+      - key: API_URL
+        fromService:
+          name: lstm-api
+          type: web
+          property: hostport
+      - key: SYMBOL
+        value: DIS
