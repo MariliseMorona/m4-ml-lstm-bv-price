@@ -2,6 +2,8 @@
 
 Projeto end-to-end de previsão de preços de fechamento de ações com **LSTM**, incluindo coleta de dados (Yahoo Finance), treinamento, API REST (FastAPI), monitoramento (Prometheus/Grafana) e dashboard (Streamlit).
 
+**Apresentação em vídeo:** [https://youtu.be/z8B2zLzZCkE](https://youtu.be/z8B2zLzZCkE)
+
 ## Visão geral da pipeline
 
 O projeto implementa uma **pipeline MLOps completa** para prever o **preço de fechamento** de ações. O fluxo vai da coleta de dados históricos até a inferência em produção via API e dashboard.
