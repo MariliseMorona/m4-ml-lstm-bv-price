@@ -19,8 +19,6 @@ services:
     plan: starter
     region: oregon
     healthCheckPath: /health
-    # Render injeta PORT; a API deve escutar $PORT (não 8000 fixo).
-    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     preDeployCommand: >-
       python -m src.data.download &&
       python -m src.data.preprocess &&

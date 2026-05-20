@@ -13,8 +13,9 @@ COPY . .
 
 ENV PYTHONPATH=/app
 ENV API_HOST=0.0.0.0
-ENV API_PORT=8000
+# Render injeta PORT em runtime; localmente usa 8000.
+ENV PORT=8000
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT}"]
